@@ -1,0 +1,531 @@
+---
+title: "Final PCDA Project"
+author: "Suresh, Reinert and Mullick"
+date: "4/6/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Gas Price Prediction
+
+This project focuses on analyzing the historical gas price trend and predict the future gas price. As we know, the prices at the pump started rising once the lockdowns were lifted and have spiraled faster since the start of the war. Our idea is to predict weekly gas prices using indicators like crude oil price, stocks, import/export etc.  
+
+The data source details are mentioned as follows.
+Historical gas price - https://www.eia.gov/opendata/qb.php?sdid=PET.EMM_EPM0U_PTE_NUS_DPG.W
+Crude oil spot price - https://www.eia.gov/opendata/qb.php?sdid=PET.RWTC.D
+Stocks of gasoline - https://www.eia.gov/opendata/qb.php?sdid=PET.WGFSTUS1.W
+Supply of gasoline - https://www.eia.gov/opendata/qb.php?sdid=PET.W_EPM0_VSD_NUS_DAYS.W
+Refinery capacity - https://www.eia.gov/opendata/qb.php?sdid=PET.WPULEUS3.W
+Crude oil exports - https://www.eia.gov/opendata/qb.php?sdid=PET.WCREXUS2.W
+Crude oil imports - https://www.eia.gov/opendata/qb.php?sdid=PET.WCRIMUS2.W
+
+
+#Loading the required libraries
+```{r}
+library(dplyr)
+library(ggplot2)
+```
+
+
+# Load the gas price merged data
+```{r load_data}
+gas_price <- read.csv("./data/Gas_Price_Data_Merged.csv")
+```
+
+Check the structure of the gas price merged data
+```{r structure}
+str(gas_price)
+```
+
+#Summary stats of the gas price merged data
+```{r summary}
+summary(gas_price)
+```
+**QUESTION** What does each row represent?
+>
+
+**QUESTION** Are there any NA values?
+>
+
+```{r isna_soln}
+any(is.na(gas_price))
+```
+Equivalently,
+```{r not_isna_soln}
+all(!is.na(gas_price))
+```
+### Basic statistics for gas price
+
+
+```{r}
+## Summary Statistics
+cat(sprintf("Mean and Median for gas prices are: %.2f and %.2f \n", mean(gas_price$Gas_price_per_gallon), median(gas_price$Gas_price_per_gallon)))
+
+cat(sprintf("Standard Deviation for gas price is: %.2f \n", sd(gas_price$Gas_price_per_gallon)))
+
+cat(sprintf("Min, Max and Range for gas prices are: %.2f, %.2f and %.2f \n", min(gas_price$Gas_price_per_gallon), max(gas_price$Gas_price_per_gallon), max(gas_price$Gas_price_per_gallon)-min(gas_price$Gas_price_per_gallon)))
+
+cat(sprintf("95th and 99th percentile for gas prices are: %.2f and %.2f \n", quantile(gas_price$Gas_price_per_gallon, 0.95), quantile(gas_price$Gas_price_per_gallon, 0.99)))
+
+cat(sprintf("IQR for gas price is: %.2f \n", IQR(gas_price$Gas_price_per_gallon)))
+
+cat(sprintf("Coefficient of variation for gas price is: %.2f \n", sd(gas_price$Gas_price_per_gallon)/mean(gas_price$Gas_price_per_gallon)))
+
+```
+
+```{r}
+ggplot(gas_price) + geom_histogram(aes(x=Gas_price_per_gallon), fill="#FF9999") +
+  ggtitle("Distribution of gas prices", subtitle = "U.S. Weekly Retail Gas Prices (1994-2022)") +
+  xlab("Selling price") + 
+  ylab("Number of gallons")
+```
+```{r}
+ggplot(gas_price) + geom_density(aes(x=Gas_price_per_gallon))
+```
+```{r}
+ggplot(gas_price) + geom_histogram(aes(x=crude_price_per_barrel), fill="#FF9999") +
+  ggtitle("Distribution of crude oil prices", subtitle = "U.S. daily Crude oil Prices (1994-2022)") +
+  xlab("Selling price") + 
+  ylab("Number of barrels")
+```
+```{r}
+ggplot(gas_price) + geom_density(aes(x=crude_price_per_barrel))
+```
+```{r}
+ggplot(gas_price) + geom_histogram(aes(x=Stocks_per_thousand_barrels), fill="#FF9999") +
+  ggtitle("Distribution of stocks of gasoline", subtitle = "U.S. weekly stocks of gasoline (1994-2022)") +
+  xlab("Stocks value") + 
+  ylab("Number of thousand barrels")
+```
+```{r}
+ggplot(gas_price) + geom_density(aes(x=Stocks_per_thousand_barrels))
+```
+```{r_facet}
+ggplot(data = gas_price) +
+  geom_histogram(aes(x=Gas_price_per_gallon), fill="pink", color="pink") + facet_wrap(~Stocks_per_thousand_barrels) + ggtitle("Gas Price faceted by stocks") + xlab("Selling price") +
+ylab("Number of gallons")
+```
+```{r}
+ggplot(data = gas_price) +
+  geom_boxplot(aes(y=Gas_price_per_gallon, x=Stocks_per_thousand_barrels))
+```
+```{r}
+ggplot(data = gas_price) +
+  geom_boxplot(aes(y=crude_price_per_barrel, x=Stocks_per_thousand_barrels))
+```
+```{r}
+ggplot(data = gas_price) +
+  geom_boxplot(aes(y=crude_price_per_barrel, x=Gas_price_per_gallon))
+```
+```{r}
+ggplot(data = gas_price) +
+  geom_violin(aes(y=crude_price_per_barrel, x=Gas_price_per_gallon))
+```
+```{r}
+ggplot(data = gas_price) + geom_boxplot(aes(x=as.factor(Stocks_per_thousand_barrels), y=Gas_price_per_gallon)) + xlab("Number of stocks")
+```
+```{r}
+ggplot(data = gas_price) +
+  geom_histogram(aes(x=Gas_price_per_gallon), fill="pink", color="pink") + facet_wrap(~Gas_Price_Date) + ggtitle("Gas Price faceted by year") + xlab("Selling price") +
+ylab("Number of gallons")
+```
+
+```{r}
+cols_for_corr <- c(2:3, 5:7, 9)
+
+gasprice_cor <- cor(gas_price[, cols_for_corr])
+gasprice_cor
+```
+```{r}
+library(corrplot)
+corrplot::corrplot(gasprice_cor)
+```
+```{r}
+library(skimr)
+skim(gas_price)
+```
+```{r}
+ggplot(gas_price) + geom_histogram(aes(x=Exp_Thousand_Barrels_Per_Day), fill="#FF9999") +
+  ggtitle("Distribution of exported barrels", subtitle = "U.S. Weekly Exports of Crude Oil (1994-2022)") +
+  xlab("Amount exported") +
+  ylab("Number of thousand barrels")
+```
+```{r}
+ggplot(gas_price) + geom_density(aes(x=Exp_Thousand_Barrels_Per_Day))
+```
+```{r}
+ggplot(gas_price) + geom_histogram(aes(x=Imp_Thousand_Barrels_Per_Day), fill="#FF9999") +
+  ggtitle("Distribution of imported barrels", subtitle = "U.S. Weekly Imports of Crude Oil (1994-2022)") +
+  xlab("Amount imported") +
+  ylab("Number of thousand barrels")
+```
+```{r}
+ggplot(gas_price) + geom_density(aes(x=Imp_Thousand_Barrels_Per_Day))
+```
+```{r}
+ggplot(gas_price) + geom_density(aes(x=Utilization_Percentage), fill="#FF9999") +
+  ggtitle("Percent Utilization of Refinery Operable Capacity", subtitle = "U.S. Weekly Percent Utilization (1994-2022)") +
+  xlab("Percent utilization") +
+  ylab("Refinery operable capacity")
+```
+```{r}
+ggplot(gas_price) + geom_density(aes(x=Utilization_Percentage))
+```
+```{r}
+ggplot(gas_price) + geom_density(aes(x=No_of_days), fill="#FF9999") +
+  ggtitle("Days of supply of total gasoline", subtitle = "U.S. Weekly Days of Total Supply (1994-2022") +
+  xlab("Number of days") +
+  ylab("Total gasoline supply")
+```
+```{r}
+ggplot(gas_price) + geom_density(aes(x=No_of_days))
+```
+```{r}
+library(tidyr)
+library(stringr)
+library(caret)
+library(MLmetrics) 
+library(forcats)
+```
+
+```{r partition}
+# Simple partition into train (80%) and test (20%) set 
+set.seed(447)
+trainIndex <- createDataPartition(gas_price$Gas_price_per_gallon, p = .8, 
+                                  list = FALSE, 
+                                  times = 1)
+
+gas_price_train <- gas_price[as.vector(trainIndex), ]  
+gas_price_test <- gas_price[-as.vector(trainIndex), ]
+
+```
+
+## EDA on training data
+### The scatter plot
+```{r}
+ggplot(gas_price_train) + geom_point(aes(x=crude_price_per_barrel, y=Gas_price_per_gallon))
+
+```
+```{r}
+ggplot(gas_price_train) + geom_point(aes(x=Stocks_per_thousand_barrels, y=Gas_price_per_gallon))
+```
+### Correlation analysis
+correlation matrix and correlation plot which include all of the numeric variables.
+```{r correlation matrix}
+gas_price_train %>% 
+  select(crude_price_per_barrel,Stocks_per_thousand_barrels, No_of_days, Utilization_Percentage, Gas_price_per_gallon, Exp_Thousand_Barrels_Per_Day, Imp_Thousand_Barrels_Per_Day) %>% 
+  cor()
+```
+```{r correlation plot}
+gas_price_train %>% 
+  select(crude_price_per_barrel,Stocks_per_thousand_barrels, No_of_days, Utilization_Percentage, Gas_price_per_gallon, Exp_Thousand_Barrels_Per_Day, Imp_Thousand_Barrels_Per_Day) %>% 
+  cor() %>% 
+  corrplot()
+```
+```{r dplyr 10 highest gas price}
+gas_price_train %>% 
+  arrange(desc(Gas_price_per_gallon)) %>% 
+  head(n=10)
+```
+
+## Building and evaluation of predictive models
+### Null model
+```{r mean_gasprice}
+mean(gas_price_train$Gas_price_per_gallon)
+```
+```{r gasprice_null_model}
+gasprice_lm0 <- lm(Gas_price_per_gallon ~ 1, data = gas_price_train)
+summary(gasprice_lm0)
+```
+```{r null_model}
+# Compute overall mean Gas Price
+null_pred <- mean(gas_price_train$Gas_price_per_gallon)
+sprintf("Null model prediction: %.2f", null_pred)
+
+# Compute null model MAE on train
+null_train_mae <- MAE(gas_price_train$Gas_price_per_gallon, null_pred)
+sprintf("Null model train MAE: %.2f", null_train_mae)
+
+# Compute null model MAE on test
+null_test_mae <- MAE(gas_price_test$Gas_price_per_gallon, null_pred)
+sprintf("Null model test MAE: %.2f", null_test_mae)
+```
+### Fit a model
+```{r lm1}
+gasprice_lm1 <- lm(Gas_price_per_gallon ~ Stocks_per_thousand_barrels +	No_of_days	+ Utilization_Percentage +	Exp_Thousand_Barrels_Per_Day + crude_price_per_barrel, data = gas_price_train)
+summary(gasprice_lm1)
+```
+### Compute MAE for the fitted model on training data
+```{r mae_train_1}
+mae_train <- c(MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm0$fitted.values),
+                MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm1$fitted.values)
+)
+
+mae_train
+```
+### Use fitted model to make predictions on test data
+```{r lm1_prediction}
+predict_lm1 <- predict(gasprice_lm1, newdata = gas_price_test)
+```
+### Compute MAE for the predictions on the test data
+```{r mae_test_1}
+mae_test <- c(MAE(gas_price_test$Gas_price_per_gallon, null_pred),
+                MAE(gas_price_test$Gas_price_per_gallon, predict_lm1)
+)
+
+mae_test
+```
+
+### More Model building
+```{r gasprice_lm2}
+gasprice_lm2 <- lm(Gas_price_per_gallon ~ Stocks_per_thousand_barrels +	No_of_days	+ Utilization_Percentage +	Exp_Thousand_Barrels_Per_Day + Imp_Thousand_Barrels_Per_Day, data = gas_price_train)
+
+summary(gasprice_lm2)
+
+MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm2$fitted)
+```
+```{r gasprice_lm3}
+gasprice_lm3 <- lm(Gas_price_per_gallon ~ Stocks_per_thousand_barrels +	No_of_days	+ Utilization_Percentage +	Exp_Thousand_Barrels_Per_Day, data = gas_price_train)
+
+summary(gasprice_lm3)
+
+MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm3$fitted)
+```
+```{r gasprice_lm4}
+gasprice_lm4 <- lm(Gas_price_per_gallon ~ Stocks_per_thousand_barrels +	No_of_days	+ Utilization_Percentage, data = gas_price_train)
+
+summary(gasprice_lm4)
+
+MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm4$fitted)
+```
+```{r gasprice_lm5}
+gasprice_lm5 <- lm(Gas_price_per_gallon ~ Stocks_per_thousand_barrels +	No_of_days	+ Utilization_Percentage, data = gas_price_train)
+
+summary(gasprice_lm5)
+
+MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm5$fitted)
+```
+```{r maes}
+maes <- c(MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm1$fitted),
+          MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm2$fitted),
+          MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm3$fitted),
+          MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm4$fitted),
+          MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm5$fitted))
+
+maes
+rank(maes)
+```
+```{r lm1_test}
+pred_lm1 <- predict(gasprice_lm1, newdata = gas_price_test)
+MAE(pred_lm1, gas_price_test$Gas_price_per_gallon)
+```
+
+```{r lm2_test}
+pred_lm2 <- predict(gasprice_lm2, newdata = gas_price_test)
+MAE(pred_lm2, gas_price_test$Gas_price_per_gallon)
+```
+
+```{r lm3_test}
+pred_lm3 <- predict(gasprice_lm3, newdata = gas_price_test)
+MAE(pred_lm3, gas_price_test$Gas_price_per_gallon)
+```
+#### Scatterplots of actual vs fitted values
+```{r scatter_train_dfs}
+scatter_train_df <- data.frame(gasprice_actual = gas_price_train[,"Gas_price_per_gallon"],
+                          lm1 = gasprice_lm1$fitted.values,
+                          lm2 = gasprice_lm2$fitted.values,
+                          lm3 = gasprice_lm3$fitted.values)
+
+```
+
+```{r scatters_actvpred_train}
+ggplot(scatter_train_df) + geom_point(aes(x=lm1, y=gasprice_actual)) + geom_abline(color='red')
+ggplot(scatter_train_df) + geom_point(aes(x=lm2, y=gasprice_actual)) + geom_abline(color='red')
+ggplot(scatter_train_df) + geom_point(aes(x=lm3, y=gasprice_actual)) + geom_abline(color='red')
+
+```
+
+```{r scatter_test_dfs}
+scatter_test_df <- data.frame(gasprice_actual = gas_price_test[,"Gas_price_per_gallon"],
+                          lm1 = pred_lm1,
+                          lm2 = pred_lm2,
+                          lm3 = pred_lm3)
+
+```
+
+```{r scatters_actvpred_test}
+ggplot(scatter_test_df) + geom_point(aes(x=lm1, y=gasprice_actual)) + geom_abline(color='red')
+ggplot(scatter_test_df) + geom_point(aes(x=lm2, y=gasprice_actual)) + geom_abline(color='red')
+ggplot(scatter_test_df) + geom_point(aes(x=lm3, y=gasprice_actual)) + geom_abline(color='red')
+
+```
+
+### Model-6: Linear Regression Model considering all the independent variables  
+```{r lm6}
+gasprice_lm6 <- lm(Gas_price_per_gallon ~ crude_price_per_barrel	+ Stocks_per_thousand_barrels +	No_of_days	+ Utilization_Percentage +	Exp_Thousand_Barrels_Per_Day + Imp_Thousand_Barrels_Per_Day, data = gas_price_train)
+summary(gasprice_lm6)
+```
+### Compute MAE for the fitted model on training data
+```{r mae_train_6}
+mae_train_lm6 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm6$fitted.values)
+
+mae_train_lm6
+```
+### Use fitted model to make predictions on test data
+```{r lm6_prediction}
+predict_lm6 <- predict(gasprice_lm6, newdata = gas_price_test)
+```
+### Compute MAE for the predictions on the test data
+```{r mae_test_6}
+mae_test_lm6 <- MAE(gas_price_test$Gas_price_per_gallon, predict_lm6)
+
+mae_test_lm6
+```
+
+### Model-7: Linear Regression Model considering crude price, stocks, no of days of supply, refinary capacity and export data 
+```{r lm7}
+gasprice_lm7 <- lm(Gas_price_per_gallon ~ crude_price_per_barrel	+ Stocks_per_thousand_barrels +	No_of_days	+ Utilization_Percentage +	Exp_Thousand_Barrels_Per_Day, data = gas_price_train)
+summary(gasprice_lm7)
+```
+### Compute MAE for the fitted model on training data
+```{r mae_train_7}
+mae_train_lm7 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm7$fitted.values)
+
+mae_train_lm7
+```
+### Use fitted model to make predictions on test data
+```{r lm7_prediction}
+predict_lm7 <- predict(gasprice_lm7, newdata = gas_price_test)
+```
+### Compute MAE for the predictions on the test data
+```{r mae_test_7}
+mae_test_lm7 <- MAE(gas_price_test$Gas_price_per_gallon, predict_lm7)
+
+mae_test_lm7
+```
+### Model-8: Linear Regression Model considering crude price, stocks, no of days of supply and refinary capacity
+```{r lm8}
+gasprice_lm8 <- lm(Gas_price_per_gallon ~ crude_price_per_barrel	+ Stocks_per_thousand_barrels +	No_of_days	+ Utilization_Percentage, data = gas_price_train)
+summary(gasprice_lm8)
+```
+### Compute MAE for the fitted model on training data
+```{r mae_train_8}
+mae_train_lm8 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm8$fitted.values)
+
+mae_train_lm8
+```
+### Use fitted model to make predictions on test data
+```{r lm8_prediction}
+predict_lm8 <- predict(gasprice_lm8, newdata = gas_price_test)
+```
+### Compute MAE for the predictions on the test data
+```{r mae_test_8}
+mae_test_lm8 <- MAE(gas_price_test$Gas_price_per_gallon, predict_lm8)
+
+mae_test_lm8
+```
+### Model-9: Linear Regression Model considering crude price, stocks and no of days of supply
+```{r lm9}
+gasprice_lm9 <- lm(Gas_price_per_gallon ~ crude_price_per_barrel	+ Stocks_per_thousand_barrels +	No_of_days, data = gas_price_train)
+summary(gasprice_lm9)
+```
+### Compute MAE for the fitted model on training data
+```{r mae_train_9}
+mae_train_lm9 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm9$fitted.values)
+
+mae_train_lm9
+```
+### Use fitted model to make predictions on test data
+```{r lm9_prediction}
+predict_lm9 <- predict(gasprice_lm9, newdata = gas_price_test)
+```
+### Compute MAE for the predictions on the test data
+```{r mae_test_9}
+mae_test_lm9 <- MAE(gas_price_test$Gas_price_per_gallon, predict_lm9)
+
+mae_test_lm9
+```
+
+### Model-10: Linear Regression Model considering crude price and  stocks
+```{r lm10}
+gasprice_lm10 <- lm(Gas_price_per_gallon ~ crude_price_per_barrel	+ Stocks_per_thousand_barrels, data = gas_price_train)
+summary(gasprice_lm10)
+```
+### Compute MAE for the fitted model on training data
+```{r mae_train_10}
+mae_train_lm10 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm10$fitted.values)
+
+mae_train_lm10
+```
+### Use fitted model to make predictions on test data
+```{r lm10_prediction}
+predict_lm10 <- predict(gasprice_lm10, newdata = gas_price_test)
+```
+### Compute MAE for the predictions on the test data
+```{r mae_test_10}
+mae_test_lm10 <- MAE(gas_price_test$Gas_price_per_gallon, predict_lm10)
+
+mae_test_lm10
+```
+
+### Model-11: Linear Regression Model considering only the crude price as independent variable
+```{r lm11}
+gasprice_lm11 <- lm(Gas_price_per_gallon ~ crude_price_per_barrel, data = gas_price_train)
+summary(gasprice_lm11)
+```
+### Compute MAE for the fitted model on training data
+```{r mae_train_10}
+mae_train_lm11 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm11$fitted.values)
+
+mae_train_lm11
+```
+### Use fitted model to make predictions on test data
+```{r lm11_prediction}
+predict_lm11 <- predict(gasprice_lm11, newdata = gas_price_test)
+```
+### Compute MAE for the predictions on the test data
+```{r mae_test_11}
+mae_test_lm11 <- MAE(gas_price_test$Gas_price_per_gallon, predict_lm11)
+
+mae_test_lm11
+```
+```{r rank_maes}
+list_maes <- c(MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm1$fitted),
+          MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm2$fitted),
+          MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm3$fitted),
+          MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm4$fitted),
+          MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm5$fitted),
+          mae_test_lm6, mae_test_lm7, mae_test_lm8, mae_test_lm9, mae_test_lm10,
+          mae_test_lm11)
+
+list_maes
+rank(list_maes)
+```
+
+#Scatter Plot for the model with lowest MAE
+```{r scatter_best_model}
+scatter_best_train <- data.frame(gasprice_actual = gas_price_train[,"Gas_price_per_gallon"],
+                          best_fitted_values = gasprice_lm6$fitted.values)
+
+```
+
+```{r scatters_actvpred_train}
+ggplot(scatter_best_train) + geom_point(aes(x=best_fitted_values, y=gasprice_actual)) + geom_abline(color='red')
+
+```
+
+```{r scatter_test_dfs}
+scatter_best_test <- data.frame(gasprice_actual = gas_price_test[,"Gas_price_per_gallon"],
+                          best_pred = predict_lm6)
+
+```
+
+```{r scatters_actvpred_test}
+ggplot(scatter_best_test) + geom_point(aes(x=predict_lm6, y=gasprice_actual)) + geom_abline(color='red')
+
+```
+```
+
