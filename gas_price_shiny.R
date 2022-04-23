@@ -96,7 +96,7 @@ server <- function(input, output) {
   lmModel <- reactive({
     tmp_training_data <- trainingData()
     tmp_training_data$Date <- as.numeric(as.Date(tmp_training_data$Date,  format="%m/%d/%Y"))
-    tmp_training_data$Gas_Price_Date <- as.numeric(as.Date(tmp_training_data$Gas_Price_Date,  format="%m/%d/%Y"))
+    tmp_training_data$Gas_price_date <- as.numeric(as.Date(tmp_training_data$Gas_price_date,  format="%m/%d/%Y"))
     req(data(),input$xvar,input$yvar)
     x <- as.numeric(data()[[as.name(input$xvar)]])
     y <- as.numeric(data()[[as.name(input$yvar)]])
