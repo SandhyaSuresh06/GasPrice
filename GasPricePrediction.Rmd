@@ -1,5 +1,5 @@
 ---
-title: "Final PCDA Project"
+title: "Gas Price Prediction"
 author: "Suresh, Reinert and Mullick"
 date: "4/6/2022"
 output: html_document
@@ -9,7 +9,6 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Gas Price Prediction
 
 This project focuses on analyzing the historical gas price trend and predict the future gas price. As we know, the prices at the pump started rising once the lockdowns were lifted and have spiraled faster since the start of the war. Our idea is to predict weekly gas prices using indicators like crude oil price, stocks, import/export etc.  
 
@@ -23,7 +22,7 @@ Crude oil exports - https://www.eia.gov/opendata/qb.php?sdid=PET.WCREXUS2.W
 Crude oil imports - https://www.eia.gov/opendata/qb.php?sdid=PET.WCRIMUS2.W
 
 
-#Loading the required libraries
+# Loading the required libraries
 ```{r}
 library(dplyr)
 library(ggplot2)
@@ -35,6 +34,7 @@ library(stringr)
 library(caret)
 library(MLmetrics) 
 library(forcats)
+library(car)
 ```
 
 
@@ -45,9 +45,9 @@ gas_price <- read.csv("./data/Gas_Price_Data_Merged.csv")
 
 Check the structure of the gas price merged data
 ```{r structure}
-print(str(gas_price))
+str(gas_price)
 ```
-#Convert Date and Gas_price_date as Date
+# Convert Date and Gas_price_date as Date
 ```{r}
 gas_price$Date <- as.Date(gas_price$Date, format="%m/%d/%Y")
 
@@ -59,7 +59,7 @@ print(str(gas_price))
 
 ```
 
-#Summary stats of the gas price merged data
+# Summary stats of the gas price merged data
 ```{r summary}
 summary(gas_price)
 ```
@@ -101,12 +101,13 @@ gas_price %>%
 ```
 > From the above table, it is evident that the gas prices were high during March 2022 and throughout 2008.  Looking at some external factors that occurred during this period of time, it makes sense why these would consist of the highest gas prices.  In 2008, the energy crisis was coming to an end, and the crude price per barrel hit its peak. Factors such as a surge in demand and international tension led gas prices to be higher.  In 2022, certain factors such as decreased oil production due to COVID, sanctions on Russian oil, and post-pandemic demand increases, gas prices have been steadily rising throughout March and much of April.  When evaluating gas prices, it's important to analyze various factors such as these, in addition to factors such as the crude price per barrel, stocks, etc.
 
-##Time Series Plots
+## Time Series Plots
 
 ```{r}
 ts_plot(gas_price)
 ```
-> 
+> We also created an interactive time series plot which can be used to select between all of the variables in the data set to view the trends.  Crude price per barrel, for example, had a similar trend as the gas prices did, which makes sense given that they are highly correlated.  There was a sharp peak and decrease in 2008, followed by a short increases and decreases before increasing steadily in 2021.  You can also see that the stocks variable had a decline throughout the time period in which this data was obtained.
+
 
 ```{r}
 ts_gas_price <- gas_price %>% 
@@ -117,7 +118,8 @@ ts_gas_price <- gas_price %>%
 ts_plot(ts_gas_price)
 ```
 
-##Histograms, Density Plots, Box Plots and Violin Plots
+## Histograms, Density Plots, Box Plots and Violin Plots
+
 > In this next section, we created graphs to show the distribution of data for the various variables.  We created histograms and density plots, as well as boxplots and violin plots.
 
 ```{r}
@@ -129,6 +131,7 @@ ggplot(gas_price) + geom_histogram(aes(x=Gas_price_per_gallon), fill="#FF9999") 
 ```{r}
 ggplot(gas_price) + geom_density(aes(x=Gas_price_per_gallon))
 ```
+
 > For the price of gas per gallon, most of the data is below $3.00 per gallon, with a max of $4.25 per gallon.
 
 ```{r}
@@ -140,6 +143,7 @@ ggplot(gas_price) + geom_histogram(aes(x=Crude_price_per_barrel), fill="#FF9999"
 ```{r}
 ggplot(gas_price) + geom_density(aes(x=Crude_price_per_barrel))
 ```
+
 > For crude price per barrel, most of these were in the lower range as well, with the majority of these at less than a $100 per barrel price point.  The peak was at $20 per barrel, and the maximum selling price was approximately $145 per barrel.
 
 ```{r}
@@ -151,6 +155,7 @@ ggplot(gas_price) + geom_histogram(aes(x=Stocks_per_thousand_barrels), fill="#FF
 ```{r}
 ggplot(gas_price) + geom_density(aes(x=Stocks_per_thousand_barrels))
 ```
+
 > The distribution of stocks per thousand barrels is bimodal, with extremes on both ends of the range and a dip in the middle.  There is a wide range for this data, from approximately $20,000 to $80,000 per thousand barrels.
 
 ```{r}
@@ -175,7 +180,7 @@ ggplot(data = gas_price) +
 ```{r}
 skim(gas_price)
 ```
-
+> The above Skim function shows us the summary of our dataset in terms of the type of columns in our dataframe. 
 
 ```{r}
 ggplot(gas_price, aes(x = Exp_thousand_barrels_per_day)) + 
@@ -187,6 +192,7 @@ ggplot(gas_price, aes(x = Exp_thousand_barrels_per_day)) +
   geom_density()
 
 ```
+
 > For the distribution of exported barrels, there is a right-skewed distribution as seen above, showing that there was typically a low amount of exported barrels.
 
 ```{r}
@@ -199,6 +205,7 @@ ggplot(gas_price, aes(x = Imp_thousand_barrels_per_day)) +
   geom_density()
 
 ```
+
 > The amount imported has a slight left-skew, but this is less extreme than the skew on the amount imported.
 
 ```{r}
@@ -207,6 +214,7 @@ ggplot(gas_price) + geom_density(aes(x=Utilization_percentage), fill="#FF9999") 
   xlab("Percent utilization") +
   ylab("Density")
 ```
+
 > The percent utilization has a left skew, showing that there was typically a high percent utilization of the refinery operable capacity.
 
 ```{r}
@@ -215,11 +223,12 @@ ggplot(gas_price) + geom_density(aes(x=No_of_days), fill="#FF9999") +
   xlab("Number of days") +
   ylab("Density")
 ```
+
 > The days of supply variable has a right skew, and is centered around the 25 day mark.  This measures the adequacy of inventories, and remains relatively consistent throughtout the data, primarily between the 20 and 30 day marks.
 
-# Corr Plot
+# Correlation Plot
 ```{r}
-cols_for_corr <- c(2:3, 5:7, 9)
+cols_for_corr <- c(2:7, 9)
 
 gasprice_cor <- cor(gas_price[, cols_for_corr])
 gasprice_cor
@@ -228,14 +237,15 @@ gasprice_cor
 ```{r}
 corrplot::corrplot(gasprice_cor)
 ```
->
 
-##Train Test Split
+> The above correlation plot exhibits the relationship between the variables of our dataset. We can see that Crude Price and Stocks have a stronger correlation with Gas Price, the Crude Price has a strong Positive correlation whereas Stocks has a strong Negative correlation with Gas Price. 
+
+## Train Test Split
 
 ```{r partition}
-# Simple partition into train (80%) and test (20%) set 
+# Simple partition into train (70%) and test (30%) set 
 set.seed(447)
-trainIndex <- createDataPartition(gas_price$Gas_price_per_gallon, p = .8, 
+trainIndex <- createDataPartition(gas_price$Gas_price_per_gallon, p = .7, 
                                   list = FALSE, 
                                   times = 1)
 
@@ -244,8 +254,10 @@ gas_price_test <- gas_price[-as.vector(trainIndex), ]
 
 ```
 
-## EDA on training data
-### The scatter plot
+# EDA on training data
+
+> Scatter plots
+
 ```{r}
 ggplot(gas_price_train) + geom_point(aes(x=Crude_price_per_barrel, y=Gas_price_per_gallon))
 
@@ -255,8 +267,8 @@ ggplot(gas_price_train) + geom_point(aes(x=Stocks_per_thousand_barrels, y=Gas_pr
 ```
 
 
-### Model Building and evaluation
-### Null model
+# Model Building and evaluation
+## Null model
 ```{r mean_gasprice}
 mean(gas_price_train$Gas_price_per_gallon)
 ```
@@ -278,12 +290,18 @@ null_test_mae <- MAE(gas_price_test$Gas_price_per_gallon, null_pred)
 sprintf("Null model test MAE: %.2f", null_test_mae)
 ```
 
-###Model-1: Linear Regression Model considering stocks, no of days of supply, refinary capacity, export data and crude price
+## Model-1: Linear Regression Model considering all the independent variables
+
 ```{r lm1}
-gasprice_lm1 <- lm(Gas_price_per_gallon ~ Stocks_per_thousand_barrels +	No_of_days	+ Utilization_percentage +	Exp_thousand_barrels_per_day + Crude_price_per_barrel, data = gas_price_train)
+gasprice_lm1 <- lm(Gas_price_per_gallon ~ Crude_price_per_barrel	+ Stocks_per_thousand_barrels +	No_of_days	+ Utilization_percentage +	Exp_thousand_barrels_per_day + Imp_thousand_barrels_per_day, data = gas_price_train)
 summary(gasprice_lm1)
 ```
-### Compute MAE for the fitted model on training data
+```{r VIF}
+vif(gasprice_lm1)
+```
+> as we can see in the above Variance Inflation Factor the values for the independent variables were less than 5 which indicates that there is no issue of multicollinearity with this model.
+
+## Compute MAE for the fitted model on training data
 ```{r mae_train_1}
 mae_train <- c(MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm0$fitted.values),
                 MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm1$fitted.values)
@@ -296,12 +314,11 @@ mae_train_lm1 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm1$fitted.v
 
 mae_train_lm1
 ```
-
-### Use fitted model to make predictions on test data
+## Use fitted model to make predictions on test data
 ```{r lm1_prediction}
 predict_lm1 <- predict(gasprice_lm1, newdata = gas_price_test)
 ```
-### Compute MAE for the predictions on the test data
+## Compute MAE for the predictions on the test data
 ```{r mae_test_1}
 mae_test <- c(MAE(gas_price_test$Gas_price_per_gallon, null_pred),
                 MAE(gas_price_test$Gas_price_per_gallon, predict_lm1)
@@ -309,112 +326,115 @@ mae_test <- c(MAE(gas_price_test$Gas_price_per_gallon, null_pred),
 
 mae_test
 ```
+> The gasprice_lm1 fits pretty well as it has r-square value of 0.9736 which is closer to 1 and almost all of them are significant variables except for import data variable. Whereas the MAE for gasprice_lm1 is lower than MAE for gasprice_lm0 since gasprice_lm1 contains additional variables.
 
-### More Model building
-### Model-2: Linear Regression Model considering stocks, no of days of supply, refinary capacity, export data and import data
+
+# More Model building
+## Model-2: Linear Regression Model considering stocks, no of days of supply, refinary capacity, export data and import data
 ```{r gasprice_lm2}
 gasprice_lm2 <- lm(Gas_price_per_gallon ~ Stocks_per_thousand_barrels +	No_of_days	+ Utilization_percentage +	Exp_thousand_barrels_per_day + Imp_thousand_barrels_per_day, data = gas_price_train)
 
 summary(gasprice_lm2)
 ```
-### Compute MAE for the fitted model on training data
+## Compute MAE for the fitted model on training data
 ```{r mae_train_2}
 mae_train_lm2 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm2$fitted.values)
 
 mae_train_lm2
 ```
-### Model-3: Linear Regression Model considering stocks, no of days of supply, refinary capacity, and export data
+## Model-3: Linear Regression Model considering stocks, no of days of supply, refinary capacity, and export data
 ```{r gasprice_lm3}
 gasprice_lm3 <- lm(Gas_price_per_gallon ~ Stocks_per_thousand_barrels +	No_of_days	+ Utilization_percentage +	Exp_thousand_barrels_per_day, data = gas_price_train)
 
 summary(gasprice_lm3)
 ```
-### Compute MAE for the fitted model on training data
+## Compute MAE for the fitted model on training data
 ```{r mae_train_3}
 mae_train_lm3 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm3$fitted.values)
 
 mae_train_lm3
 ```
-### Model-4: Linear Regression Model considering stocks, no of days of supply, and refinary capacity
+## Model-4: Linear Regression Model considering stocks, no of days of supply, and refinary capacity
 ```{r gasprice_lm4}
 gasprice_lm4 <- lm(Gas_price_per_gallon ~ Stocks_per_thousand_barrels +	No_of_days	+ Utilization_percentage, data = gas_price_train)
 
 summary(gasprice_lm4)
 
 ```
-### Compute MAE for the fitted model on training data
+## Compute MAE for the fitted model on training data
 ```{r mae_train_4}
 mae_train_lm4 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm4$fitted.values)
 
 mae_train_lm4
 ```
-### Model-5: Linear Regression Model considering stocks and no of days of supply
+## Model-5: Linear Regression Model considering stocks and no of days of supply
 ```{r gasprice_lm5}
 gasprice_lm5 <- lm(Gas_price_per_gallon ~ Stocks_per_thousand_barrels +	No_of_days, data = gas_price_train)
 
 summary(gasprice_lm5)
 ```
-### Compute MAE for the fitted model on training data
+## Compute MAE for the fitted model on training data
 ```{r mae_train_5}
 mae_train_lm5 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm5$fitted.values)
 
 mae_train_lm5
 ```
-### Model-6: Linear Regression Model considering only stocks as independent variable
+## Model-6: Linear Regression Model considering only stocks as independent variable
 ```{r gasprice_lm6}
 gasprice_lm6 <- lm(Gas_price_per_gallon ~ Stocks_per_thousand_barrels, data = gas_price_train)
 
 summary(gasprice_lm6)
 ```
-### Compute MAE for the fitted model on training data
+## Compute MAE for the fitted model on training data
 ```{r mae_train_6}
 mae_train_lm6 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm6$fitted.values)
 
 mae_train_lm6
 ```
 
-### Model-7: Linear Regression Model considering all the independent variables  
+## Model-7: Linear Regression Model considering stocks, no of days of supply, refinary capacity, export data and crude price 
 ```{r lm7}
-gasprice_lm7 <- lm(Gas_price_per_gallon ~ Crude_price_per_barrel	+ Stocks_per_thousand_barrels +	No_of_days	+ Utilization_percentage +	Exp_thousand_barrels_per_day + Imp_thousand_barrels_per_day, data = gas_price_train)
+gasprice_lm7 <- lm(Gas_price_per_gallon ~ Stocks_per_thousand_barrels +	No_of_days	+ Utilization_percentage +	Exp_thousand_barrels_per_day + Crude_price_per_barrel, data = gas_price_train)
 summary(gasprice_lm7)
 ```
-### Compute MAE for the fitted model on training data
+
+## Compute MAE for the fitted model on training data
 ```{r mae_train_7}
 mae_train_lm7 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm7$fitted.values)
 
 mae_train_lm7
 ```
 
-### Model-8: Linear Regression Model considering crude price, stocks, no of days of supply and refinary capacity
+## Model-8: Linear Regression Model considering crude price, stocks, no of days of supply and refinary capacity
 ```{r lm8}
 gasprice_lm8 <- lm(Gas_price_per_gallon ~ Crude_price_per_barrel	+ Stocks_per_thousand_barrels +	No_of_days	+ Utilization_percentage, data = gas_price_train)
 summary(gasprice_lm8)
 ```
-### Compute MAE for the fitted model on training data
+## Compute MAE for the fitted model on training data
 ```{r mae_train_8}
 mae_train_lm8 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm8$fitted.values)
 
 mae_train_lm8
 ```
 
-### Model-9: Linear Regression Model considering crude price, stocks and no of days of supply
+## Model-9: Linear Regression Model considering crude price, stocks and no of days of supply
 ```{r lm9}
 gasprice_lm9 <- lm(Gas_price_per_gallon ~ Crude_price_per_barrel	+ Stocks_per_thousand_barrels +	No_of_days, data = gas_price_train)
 summary(gasprice_lm9)
 ```
-### Compute MAE for the fitted model on training data
+## Compute MAE for the fitted model on training data
 ```{r mae_train_9}
 mae_train_lm9 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm9$fitted.values)
 
 mae_train_lm9
 ```
 
-### Model-10: Linear Regression Model considering crude price and  stocks
+## Model-10: Linear Regression Model considering crude price and  stocks
 ```{r lm10}
 gasprice_lm10 <- lm(Gas_price_per_gallon ~ Crude_price_per_barrel	+ Stocks_per_thousand_barrels, data = gas_price_train)
 summary(gasprice_lm10)
 ```
-### Compute MAE for the fitted model on training data
+## Compute MAE for the fitted model on training data
 ```{r mae_train_10}
 mae_train_lm10 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm10$fitted.values)
 
@@ -422,72 +442,72 @@ mae_train_lm10
 ```
 
 
-### Model-11: Linear Regression Model considering only the crude price as independent variable
+## Model-11: Linear Regression Model considering only the crude price as independent variable
 ```{r lm11}
 gasprice_lm11 <- lm(Gas_price_per_gallon ~ Crude_price_per_barrel, data = gas_price_train)
 summary(gasprice_lm11)
 ```
-### Compute MAE for the fitted model on training data
+## Compute MAE for the fitted model on training data
 ```{r mae_train_11}
 mae_train_lm11 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm11$fitted.values)
 
 mae_train_lm11
 ```
 
-### Model-12: Linear Regression Model considering no of days of supply, refinery capacity,  export data, import data and crude price
+## Model-12: Linear Regression Model considering no of days of supply, refinery capacity,  export data, import data and crude price
 ```{r lm12}
 gasprice_lm12 <- lm(Gas_price_per_gallon ~ No_of_days	+ Utilization_percentage +	Exp_thousand_barrels_per_day + Imp_thousand_barrels_per_day + Crude_price_per_barrel, data = gas_price_train)
 summary(gasprice_lm12)
 ```
-### Compute MAE for the fitted model on training data
+## Compute MAE for the fitted model on training data
 ```{r mae_train_12}
 mae_train_lm12 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm12$fitted.values)
 
 mae_train_lm12
 ```
 
-### Model-13: Linear Regression Model considering no of days of supply, refinery capacity,  export and import data
+## Model-13: Linear Regression Model considering no of days of supply, refinery capacity,  export and import data
 ```{r lm13}
 gasprice_lm13 <- lm(Gas_price_per_gallon ~ No_of_days	+ Utilization_percentage +	Exp_thousand_barrels_per_day + Imp_thousand_barrels_per_day, data = gas_price_train)
 summary(gasprice_lm13)
 ```
-### Compute MAE for the fitted model on training data
+## Compute MAE for the fitted model on training data
 ```{r mae_train_13}
 mae_train_lm13 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm13$fitted.values)
 
 mae_train_lm13
 ```
 
-### Model-14: Linear Regression Model considering no of days of supply, refinery capacity, and export data
+## Model-14: Linear Regression Model considering no of days of supply, refinery capacity, and export data
 ```{r lm14}
 gasprice_lm14 <- lm(Gas_price_per_gallon ~ No_of_days	+ Utilization_percentage +	Exp_thousand_barrels_per_day, data = gas_price_train)
 summary(gasprice_lm14)
 ```
-### Compute MAE for the fitted model on training data
+## Compute MAE for the fitted model on training data
 ```{r mae_train_14}
 mae_train_lm14 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm14$fitted.values)
 
 mae_train_lm14
 ```
 
-### Model-15: Linear Regression Model considering no of days of supply and refinery capacity
+## Model-15: Linear Regression Model considering no of days of supply and refinery capacity
 ```{r lm15}
 gasprice_lm15 <- lm(Gas_price_per_gallon ~ No_of_days	+ Utilization_percentage, data = gas_price_train)
 summary(gasprice_lm15)
 ```
-### Compute MAE for the fitted model on training data
+## Compute MAE for the fitted model on training data
 ```{r mae_train_15}
 mae_train_lm15 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm15$fitted.values)
 
 mae_train_lm15
 ```
 
-### Model-16: Linear Regression Model considering only no of days of supply as independent variable
+## Model-16: Linear Regression Model considering only no of days of supply as independent variable
 ```{r lm16}
 gasprice_lm16 <- lm(Gas_price_per_gallon ~ No_of_days, data = gas_price_train)
 summary(gasprice_lm16)
 ```
-### Compute MAE for the fitted model on training data
+## Compute MAE for the fitted model on training data
 ```{r mae_train_16}
 mae_train_lm16 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm16$fitted.values)
 
@@ -495,39 +515,40 @@ mae_train_lm16
 ```
 
 
-### Model-17: Linear Regression Model considering refinery capacity, crude price, stocks, no of days of supply and import data
+## Model-17: Linear Regression Model considering refinery capacity, crude price, stocks, no of days of supply and import data
 ```{r lm17}
 gasprice_lm17 <- lm(Gas_price_per_gallon ~ Utilization_percentage + Crude_price_per_barrel	+ Stocks_per_thousand_barrels +	No_of_days  + Imp_thousand_barrels_per_day, data = gas_price_train)
 summary(gasprice_lm17)
 ```
-### Compute MAE for the fitted model on training data
+## Compute MAE for the fitted model on training data
 ```{r mae_train_17}
 mae_train_lm17 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm17$fitted.values)
 
 mae_train_lm17
 ```
-### Model-18: Linear Regression Model considering refinery capacity and crude price
+## Model-18: Linear Regression Model considering refinery capacity and crude price
 ```{r lm18}
 gasprice_lm18 <- lm(Gas_price_per_gallon ~ Utilization_percentage + Crude_price_per_barrel, data = gas_price_train)
 summary(gasprice_lm18)
 ```
-### Compute MAE for the fitted model on training data
+## Compute MAE for the fitted model on training data
 ```{r mae_train_18}
 mae_train_lm18 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm18$fitted.values)
 
 mae_train_lm18
 ```
-### Model-19: Linear Regression Model considering only refinery capacity as independent variable
+## Model-19: Linear Regression Model considering only refinery capacity as independent variable
 ```{r lm19}
 gasprice_lm19 <- lm(Gas_price_per_gallon ~ Utilization_percentage, data = gas_price_train)
 summary(gasprice_lm19)
 ```
-### Compute MAE for the fitted model on training data
+## Compute MAE for the fitted model on training data
 ```{r mae_train_19}
 mae_train_lm19 <- MAE(gas_price_train$Gas_price_per_gallon, gasprice_lm19$fitted.values)
 
 mae_train_lm19
 ```
+
 
 
 ```{r rank_maes}
@@ -554,19 +575,20 @@ maes <- c(mae_train_lm1,
 maes
 rank(maes)
 ```
-So, `lm7` has the lowest MAE followed by `lm1` and then `lm8`.
+So, `lm1` has the lowest MAE followed by `lm7` and then `lm8`.
 
 Let's see how these three models do in predicting the test data values.
+
+```{r lm1_test}
+pred_lm1 <- predict(gasprice_lm1, newdata = gas_price_test)
+MAE(pred_lm1, gas_price_test$Gas_price_per_gallon)
+```
 
 ```{r lm7_test}
 pred_lm7 <- predict(gasprice_lm7, newdata = gas_price_test)
 MAE(pred_lm7, gas_price_test$Gas_price_per_gallon)
 ```
 
-```{r lm1_test}
-pred_lm1 <- predict(gasprice_lm1, newdata = gas_price_test)
-MAE(pred_lm1, gas_price_test$Gas_price_per_gallon)
-```
 
 ```{r lm8_test}
 pred_lm8 <- predict(gasprice_lm8, newdata = gas_price_test)
@@ -578,19 +600,20 @@ MAE(pred_lm8, gas_price_test$Gas_price_per_gallon)
 
 For our top 3 models, we  have created a scatter plot showing actual vs fitted values
 of `Gas Price`.
+
 > Here are the scatters on the training data.
 
 ```{r scatter_train_dfs}
 scatter_train_df <- data.frame(gasprice_actual = gas_price_train[,"Gas_price_per_gallon"],
-                          lm7 = gasprice_lm7$fitted.values,
                           lm1 = gasprice_lm1$fitted.values,
+                          lm7 = gasprice_lm7$fitted.values,
                           lm8 = gasprice_lm8$fitted.values)
 
 ```
 
 ```{r scatters_actvpred_train}
-ggplot(scatter_train_df) + geom_point(aes(x=lm7, y=gasprice_actual)) + geom_abline(color='red')
 ggplot(scatter_train_df) + geom_point(aes(x=lm1, y=gasprice_actual)) + geom_abline(color='red')
+ggplot(scatter_train_df) + geom_point(aes(x=lm7, y=gasprice_actual)) + geom_abline(color='red')
 ggplot(scatter_train_df) + geom_point(aes(x=lm8, y=gasprice_actual)) + geom_abline(color='red')
 
 ```
@@ -599,16 +622,16 @@ ggplot(scatter_train_df) + geom_point(aes(x=lm8, y=gasprice_actual)) + geom_abli
 
 ```{r scatter_test_dfs}
 scatter_test_df <- data.frame(gasprice_actual = gas_price_test[,"Gas_price_per_gallon"],
-                          lm7 = pred_lm7,
                           lm1 = pred_lm1,
+                          lm7 = pred_lm7,
                           lm8 = pred_lm8)
 head(scatter_test_df)
 
 ```
 
 ```{r scatters_actvpred_test}
-ggplot(scatter_test_df) + geom_point(aes(x=lm7, y=gasprice_actual)) + geom_abline(color='red')
 ggplot(scatter_test_df) + geom_point(aes(x=lm1, y=gasprice_actual)) + geom_abline(color='red')
+ggplot(scatter_test_df) + geom_point(aes(x=lm7, y=gasprice_actual)) + geom_abline(color='red')
 ggplot(scatter_test_df) + geom_point(aes(x=lm8, y=gasprice_actual)) + geom_abline(color='red')
 
 ```
@@ -617,9 +640,10 @@ ggplot(scatter_test_df) + geom_point(aes(x=lm8, y=gasprice_actual)) + geom_ablin
 
 #### Constant variance
 ```{r constant_variance}
-ggplot(data.frame(residuals=gasprice_lm7$residuals,
-                  fitted=gasprice_lm7$fitted.values)) + geom_point(aes(x=fitted, y=residuals))
+ggplot(data.frame(residuals=gasprice_lm1$residuals,
+                  fitted=gasprice_lm1$fitted.values)) + geom_point(aes(x=fitted, y=residuals))
 ```
+
 > The plot does not have constant variance as it is more of a fanned out shape which leads the selected top model towards being “Heteroskedastic”.
 
 ### Make predictions for the test dataset
@@ -629,8 +653,8 @@ For each of our top 3 models, we made predictions for `Gas Price` using `gas_pri
 
 ```{r gather_predict}
 
-price_predict <- data.frame(predict7=predict(gasprice_lm7, newdata=gas_price_test),
-                             predict1=predict(gasprice_lm1, newdata=gas_price_test),
+price_predict <- data.frame(predict1=predict(gasprice_lm1, newdata=gas_price_test),
+                             predict7=predict(gasprice_lm7, newdata=gas_price_test),
                              predict8=predict(gasprice_lm8, newdata=gas_price_test),
                              price_actual=gas_price_test$Gas_price_per_gallon)
 
@@ -642,33 +666,35 @@ We then computed the MAE for each of the three models' predictions on the test d
 
 ```{r gather_predict_MAE}
 
-price_predict_MAE <- data.frame(predict7_MAE=MAE(price_predict$predict7, gas_price_test$Gas_price_per_gallon),
-                                predict1_MAE=MAE(price_predict$predict1, gas_price_test$Gas_price_per_gallon),
+price_predict_MAE <- data.frame(predict1_MAE=MAE(price_predict$predict1, gas_price_test$Gas_price_per_gallon),
+                                predict7_MAE=MAE(price_predict$predict7, gas_price_test$Gas_price_per_gallon),
                                 predict8_MAE=MAE(price_predict$predict8, gas_price_test$Gas_price_per_gallon))
 
 price_predict_MAE
 ```
+
+### Model Comparison
+>The top model is “gasprice_lm1” for which we considered all the independent variables. The model makes sense in terms of the variables included as we can see from the correlation matrix the variable “Crude Price” had a strong positive correlation while “Stocks” had a strong negative correlation with Gas Price and same signs were depicted in the coeeficient estimate value for these variables. The reason behind selecting all variables is that almost all of them are significant variables except for import data variable and this model has the lowest MAE value for both training (0.1031485) and test set (0.1081121). Whereas the R-squared value is the highest 0.9736 being a good model fit.
+
+
 ```{r}
 str(gas_price_test$Date)
 ```
 
 
 ```{r}
-finalpredtestData<-data.frame(gas_price_test$Date,price_predict$predict7)
-colnames(finalpredtestData) <-c("Date","GasPrice")
+
+finalpredtestData<-data.frame(gas_price_test$Date,price_predict$predict7,gas_price_test$Gas_price_per_gallon )
+colnames(finalpredtestData) <-c("Date","GasPricePredicted", "GasPriceActual")
 ```
 
-```{r}
-ggplot(finalpredtestData,aes(Date,GasPrice))+ geom_line() +
-xlab("Date")+ ylab("Gas Price ($)") + 
-  scale_x_date(limits=as.Date(c('2021-01-01','2022-03-01'), breaks=date_breaks(width="6 months")))
-```
+
 
 ```{r}
 ts_plot(finalpredtestData)
 ```
 
-
+>In the above time series plot showcases both the actual and predicted gas price values of our champion model we can observe that both the lines are following closely with each other across the years and proves that our model fits well. But for the year 2020 probably due to COVID as a factor which caused a drastic decrease in demand so in reality the gas prices went down and we can see the model's predicted gas price was able to follow the trend but was just a little off by 0.70 cents.
 
  
 

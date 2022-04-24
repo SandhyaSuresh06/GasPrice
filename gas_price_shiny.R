@@ -22,7 +22,7 @@ ui <- fluidPage(
       label = h3("Train/Test Split %"),
       min = 0,
       max = 100,
-      value = 80
+      value = 70
     ),
     textOutput("cntTrain"),
     textOutput("cntTest"),
